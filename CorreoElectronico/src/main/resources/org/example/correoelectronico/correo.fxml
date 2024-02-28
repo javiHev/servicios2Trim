@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="763.0" prefWidth="1022.0" styleClass="fondo"  xmlns="http://javafx.com/javafx/20.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.correoelectronico.CrearCorreo">
+    <children>
+        <TextField fx:id="destinatario" layoutX="134.0" layoutY="145.0" prefHeight="36.0" prefWidth="325.0" />
+        <Label layoutX="134.0" layoutY="85.0" prefHeight="49.0" prefWidth="195.0" styleClass="opcion" text="Destinatario" />
+        <Button layoutX="382.0" layoutY="604.0" onMouseClicked="#enviar" prefHeight="59.0" prefWidth="236.0" styleClass="btn" text="Enviar" />
+        <Label layoutX="134.0" layoutY="267.0" prefHeight="49.0" prefWidth="195.0" styleClass="opcion" text="Contenido" />
+        <TextArea fx:id="contenido" layoutX="132.0" layoutY="332.0" prefHeight="200.0" prefWidth="638.0" />
+        <Label fx:id="correoErroneo" layoutX="134.0" layoutY="215.0" prefHeight="28.0" prefWidth="137.0" styleClass="error" />
+    </children>
+</AnchorPane>

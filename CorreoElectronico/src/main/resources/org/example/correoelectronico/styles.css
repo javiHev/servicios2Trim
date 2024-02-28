@@ -1,0 +1,36 @@
+.anchor-pane-borde-redondeado {
+    -fx-background-color: #EA4335;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+}
+.anchor-pane-borde-redondeado * {
+    -fx-text-fill: #FFFFFF;
+}
+.text-field {
+    -fx-background-color: transparent, white;
+    -fx-background-insets: 0, 1;
+    -fx-background-radius: 5;
+    -fx-border-color: white;
+    -fx-border-radius: 5;
+    -fx-border-width: 2;
+    -fx-text-fill: #000000; /* Texto de color negro */
+}
+
+.custom-button {
+    -fx-background-color: #EA4335;
+    -fx-background-radius: 20;
+    -fx-border-color: white;
+    -fx-border-radius: 20;
+    -fx-border-width: 2;
+    -fx-text-fill: white;
+}
+
+.custom-button:hover {
+    -fx-background-color: #D73727;
+}
+
+.custom-button:pressed {
+    -fx-background-color: white;
+    -fx-border-color: #EA4335;
+    -fx-text-fill: #EA4335;
+}
