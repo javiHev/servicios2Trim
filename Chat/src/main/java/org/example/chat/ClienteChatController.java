@@ -3,76 +3,133 @@ import javafx.fxml.FXML;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javax.crypto.Cipher;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.security.KeyFactory;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
+import static java.lang.System.out;
+
+
 public class ClienteChatController {
+
     @FXML
     private TextArea messageArea;
 
     @FXML
     private TextField inputBox;
+    private Socket socket;
+    private PrintWriter out;
 
-    private DatagramSocket socket;
-    private InetAddress address;
-    private static final int SERVER_PORT = 4321;
-    private static final String identifier = "Edu";
-    private ClientCryptoManager cryptoManager;
+    private PublicKey publicKeyDestinatario;
+    private PrivateKey privateKey;
+    private static final String RSA = "RSA";
 
-    // La clave pública del servidor se inicializará al recibir desde el servidor
-    private PublicKey serverPublicKey;
+    public void setPublicKey(PublicKey publicKey) {
+        this.publicKeyDestinatario = publicKey;
+    }
 
-    @FXML
-    public void initialize() {
+    public void setPrivateKey(PrivateKey privateKey) {
+        this.privateKey = privateKey;
+    }
+
+    // Supongamos que ya tienes los métodos para establecer las claves, por simplificación
+    public void connectToServer(String serverAddress, int port) {
         try {
-            cryptoManager = new ClientCryptoManager();
-            socket = new DatagramSocket();
-            address = InetAddress.getByName("localhost");
-            HiloCliente clientThread = new HiloCliente(socket, messageArea, cryptoManager, this); // Asegúrate de pasar 'this' al HiloCliente
-            clientThread.start();
+            this.socket = new Socket(serverAddress, port);
+            this.out = new PrintWriter(socket.getOutputStream(), true);
 
-            String initMessageStr = "init;" + identifier + ";" + cryptoManager.getPublicKeyAsString();
-            byte[] initMessage = initMessageStr.getBytes();
-            DatagramPacket initializePacket = new DatagramPacket(initMessage, initMessage.length, address, SERVER_PORT);
-            socket.send(initializePacket);
+            // Iniciar un nuevo hilo para escuchar mensajes del servidor
+            Thread listenThread = new Thread(this::listenForMessages);
+            listenThread.setDaemon(true);
+            listenThread.start();
 
-        } catch (Exception e) {
-            e.printStackTrace(); // Considere una mejor gestión de excepciones
+        } catch (IOException e) {
+            e.printStackTrace();
+            messageArea.appendText("Error al conectarse al servidor: " + e.getMessage() + "\n");
         }
     }
+
+    private void listenForMessages() {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String encodedMessage;
+            while ((encodedMessage = reader.readLine()) != null) {
+                // Desencriptar el mensaje recibido
+                byte[] encryptedMessageBytes = Base64.getDecoder().decode(encodedMessage);
+                String decryptedMessage = decryptMessage(encryptedMessageBytes, privateKey);
+
+                // Mostrar el mensaje desencriptado en el área de mensajes
+                final String messageToShow = decryptedMessage;
+                javafx.application.Platform.runLater(() -> messageArea.appendText("Ellos: " + messageToShow + "\n"));
+            }
+        } catch (IOException e) {
+            javafx.application.Platform.runLater(() -> messageArea.appendText("Error al escuchar el mensaje del servidor: " + e.getMessage() + "\n"));
+        } catch (Exception e) {
+            javafx.application.Platform.runLater(() -> messageArea.appendText("Error al desencriptar el mensaje: " + e.getMessage() + "\n"));
+        }
+    }
+
 
     @FXML
     private void handleSendMessage() {
-        String messageText = inputBox.getText().trim();
-        if (!messageText.isEmpty()) {
-            try {
-                String formattedMessage = identifier + ":" + messageText;
-                Cipher cipher = Cipher.getInstance("RSA");
-                cipher.init(Cipher.ENCRYPT_MODE, serverPublicKey); // Usa la clave pública del servidor
-                byte[] encryptedMessage = cipher.doFinal(formattedMessage.getBytes());
-                // Codificar el mensaje cifrado en Base64 antes de enviar
-                String encryptedBase64Message = Base64.getEncoder().encodeToString(encryptedMessage);
-                // Convertir a bytes para enviar
-                byte[] messageBytes = encryptedBase64Message.getBytes();
-                DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, address, SERVER_PORT);
-                socket.send(packet);
-                messageArea.appendText("Tú: " + messageText + "\n");
-                inputBox.clear();
-            } catch (Exception e) {
-                e.printStackTrace(); // Manejo de errores
+        try {
+            String message = inputBox.getText().trim();
+
+            if (!message.isEmpty()) {
+                // Encriptar el mensaje
+                byte[] encryptedMessage = encryptMessage(message, publicKeyDestinatario);
+                // Convertir el mensaje encriptado a base64 para enviarlo como texto
+                String encodedMessage = Base64.getEncoder().encodeToString(encryptedMessage);
+
+                // Enviar el mensaje encriptado y codificado al servidor
+                if (out != null) {
+                    out.println(encodedMessage);
+                    messageArea.appendText("Yo: " + message + "\n");
+                } else {
+                    messageArea.appendText("No conectado al servidor.\n");
+                }
+
+                inputBox.clear(); // Limpiar el inputBox después de enviar
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            messageArea.appendText("Error al enviar el mensaje: " + e.getMessage() + "\n");
+        }
+    }
+
+    public byte[] encryptMessage(String message, PublicKey publicKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(RSA);
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return cipher.doFinal(message.getBytes());
+    }
+
+    public String decryptMessage(byte[] encryptedMessage, PrivateKey privateKey) throws Exception {
+        Cipher cipher = Cipher.getInstance(RSA);
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] decryptedBytes = cipher.doFinal(encryptedMessage);
+        return new String(decryptedBytes);
+    }
+
+    // Método para recibir y desplegar mensajes (debes llamarlo cuando recibes un mensaje)
+    public void onMessageReceived(String encodedMessage) {
+        try {
+            byte[] encryptedMessageBytes = Base64.getDecoder().decode(encodedMessage);
+            String decryptedMessage = decryptMessage(encryptedMessageBytes, privateKey);
+            // Actualizar el área de mensajes de forma segura en el hilo de la interfaz de usuario
+            javafx.application.Platform.runLater(() -> messageArea.appendText("Ellos: " + decryptedMessage + "\n"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Asegurar que las actualizaciones de la interfaz de usuario se hacen en el hilo correcto
+            javafx.application.Platform.runLater(() -> messageArea.appendText("Error al desencriptar el mensaje: " + e.getMessage() + "\n"));
         }
     }
 
 
-    // Método para actualizar la clave pública del servidor
-    public void updateServerPublicKey(PublicKey publicKey) {
-        this.serverPublicKey = publicKey;
-    }
 }
 

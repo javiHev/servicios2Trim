@@ -5,28 +5,64 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+
+import java.io.ObjectOutputStream;
+import java.net.Socket;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class ClienteChat extends Application {
-    /*
-    *            IMPORTANTE
-    *
-    *   1.Ejecuta antes la clase ServerChat
-    *
-    *   2.Ejecuta la primera instancia de esta clase.
-    *
-    *   3.Ejecuta una segunda instancia de la clase cliente (Esto se hace yendo a Run > Edit Configurations
-    *   dale un nombre como ClienteChat2 y asegurate que el campo Main class sea esta clase (Cliente Chat)
-    *
-    *   4.Puedes cambiar el nombre en la clase ClienteChatController al ejecutar la segunda instancia para simular
-    *    una conversacion entre dos personas distintas.
-    * */
+
+    private Socket clientSocket;
+    private PublicKey publicKey;
+    private PrivateKey privateKey;
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
-        Parent root = FXMLLoader.load(getClass().getResource("chat_ui.fxml"));
-        Scene scene = new Scene(root);
-        primaryStage.setScene(scene);
-        primaryStage.show();
+    public void start(Stage primaryStage) {
+        try {
+            generateKeyPair();
+
+            String serverAddress = "localhost";
+            int port = 12345;
+            clientSocket = new Socket(serverAddress, port);
+
+            ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+            outputStream.writeObject(publicKey);
+
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/org/example/chat/login.fxml"));
+            Parent root = fxmlLoader.load();
+
+            LoginController loginController = fxmlLoader.getController();
+            loginController.initialize(publicKey, privateKey);
+
+            Scene scene = new Scene(root);
+            primaryStage.setTitle("Inicio de Sesión - Chat");
+            primaryStage.setScene(scene);
+            primaryStage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert("Error", "No se pudo iniciar la aplicación: " + e.getMessage());
+        }
+    }
+
+    private void generateKeyPair() throws Exception {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.genKeyPair();
+        this.publicKey = keyPair.getPublic();
+        this.privateKey = keyPair.getPrivate();
+    }
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public static void main(String[] args) {

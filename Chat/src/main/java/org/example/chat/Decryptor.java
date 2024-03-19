@@ -1,5 +1,4 @@
 package org.example.chat;
-
 import javax.crypto.Cipher;
 import java.security.PrivateKey;
 
@@ -10,4 +9,5 @@ public class Decryptor {
         byte[] decryptedBytes = cipher.doFinal(cipherText);
         return new String(decryptedBytes);
     }
+
 }
